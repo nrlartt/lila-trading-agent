@@ -1,0 +1,53 @@
+{
+  "name": "lila-trading-agent",
+  "version": "1.0.0",
+  "description": "LILA — a self-funding & verifiable autonomous trading agent on BNB Chain. Trades the alpha it produces, sells that alpha via x402, and proves every decision on-chain (ERC-8004). Built with the Trust Wallet Agent Kit and the CoinMarketCap AI Agent Hub.",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "author": "nrlartt (github.com/nrlartt)",
+  "homepage": "https://lilagent.xyz",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/nrlartt/lila-trading-agent.git"
+  },
+  "keywords": [
+    "bnb-chain",
+    "trading-agent",
+    "trust-wallet-agent-kit",
+    "coinmarketcap",
+    "x402",
+    "erc-8004",
+    "ai-agent",
+    "defi"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "watch": "nodemon --watch src -e ts --exec ts-node src/index.ts",
+    "test:tokens": "ts-node src/scripts/test-tokens.ts",
+    "test:risk": "ts-node src/scripts/test-risk.ts",
+    "demo:x402": "ts-node src/scripts/buy-alpha.ts",
+    "compete:status": "ts-node src/scripts/compete.ts status",
+    "compete:register": "ts-node src/scripts/compete.ts register"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "latest",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "winston": "^3.13.0",
+    "ws": "^8.17.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.12",
+    "@types/ws": "^8.5.10",
+    "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}

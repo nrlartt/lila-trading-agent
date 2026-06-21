@@ -1,0 +1,21 @@
+node_modules/
+dist/
+.env
+.env*.local
+*.log
+
+# Runtime state (trades, ledger, portfolio history) — regenerated on run
+logs/
+
+# Installed agent skills / design-lab artifacts — tooling, not product code
+.agents/
+.claude-design/
+
+# Local wallet/keystore
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.idea/
+.vscode/
+.DS_Store
+wallet.json
