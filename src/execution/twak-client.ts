@@ -205,9 +205,10 @@ export class TwakClient {
           throw new Error('TWAK_WALLET_PASSWORD is required to create a wallet.');
         }
 
-        // Password is provided via the TWAK_WALLET_PASSWORD env var (see runCli),
-        // not as a CLI arg, to avoid leaking it into shell history / process list.
-        const result = await this.runCli('wallet create');
+        // `wallet create` is the one command that mandates an explicit --password
+        // flag (it does not fall back to TWAK_WALLET_PASSWORD like the others), so we
+        // must pass it here. Quoted to survive special characters.
+        const result = await this.runCli('wallet create', [`--password "${config.twakWalletPassword}"`]);
         logger.info(`Agent wallet created successfully. Details: ${result}`);
       } else {
         logger.info('Agent wallet already exists and is configured.');
