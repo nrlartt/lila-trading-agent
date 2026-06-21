@@ -27,3 +27,11 @@ export interface MarketContext {
   sentiment: MarketSentiment;
   currentPortfolioValueUsd: number;
 }
+
+/** A currently-held position with its USD cost basis and current value. */
+export interface OpenPositionInfo {
+  symbol: string;
+  amount: number;
+  currentUsd: number;
+  costUsd: number;
+}

@@ -29,6 +29,8 @@ export interface Config {
   dailyLimitUsd: number;
   maxTradeUsd: number;
   slippageBps: number;
+  takeProfitPct: number;
+  stopLossPct: number;
   bscRpcUrl: string;
   bscChainId: number;
   port: number;
@@ -68,6 +70,8 @@ export const config: Config = {
   dailyLimitUsd: parseFloat(getEnv('DAILY_LIMIT_USD', '10')),
   maxTradeUsd: parseFloat(getEnv('MAX_TRADE_USD', '5')),
   slippageBps: parseInt(getEnv('SLIPPAGE_BPS', '100'), 10),
+  takeProfitPct: parseFloat(getEnv('TAKE_PROFIT_PCT', '15')),
+  stopLossPct: parseFloat(getEnv('STOP_LOSS_PCT', '10')),
   bscRpcUrl: getEnv('BSC_RPC_URL', 'https://bsc-dataseed.binance.org'),
   bscChainId: parseInt(getEnv('BSC_CHAIN_ID', '56'), 10),
   port: parseInt(getEnv('PORT', '3000'), 10),

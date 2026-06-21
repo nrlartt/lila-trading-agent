@@ -184,7 +184,18 @@ export class AgentOrchestrator {
         currentPortfolioValueUsd: currentBalanceUsd
       };
       
-      let decisions = await this.strategyEngine.evaluate(context, openPositions);
+      // Build position info (USD value + cost basis) for TP/SL and rotation
+      const positionInfos = (portfolio.tokens || [])
+        .filter(t => parseFloat(t.balance) > 0)
+        .map(t => ({
+          symbol: t.symbol.toUpperCase(),
+          amount: parseFloat(t.balance),
+          currentUsd: Number(t.usdValue) || 0,
+          costUsd: this.portfolioTracker.getCostBasis(t.symbol)
+        }));
+      const availableBnbUsd = Number(portfolio.nativeUsdValue) || 0;
+
+      let decisions = await this.strategyEngine.evaluate(context, openPositions, positionInfos, availableBnbUsd);
 
       // 5. Enforce minimum daily trading requirement
       decisions = this.tradeEnforcer.checkAndEnforce(decisions, openPositions, currentBalanceUsd);
@@ -202,16 +213,19 @@ export class AgentOrchestrator {
           // In case of selling, we swap token to WBNB or BNB (gas/native) or USDT
           const fromAsset = decision.action === 'BUY' ? 'BNB' : decision.tokenSymbol;
           const toAsset = decision.action === 'BUY' ? decision.tokenSymbol : 'BNB'; // Swapping back to gas or stable
-          
-          const swapResult = await this.twakClient.executeSwap(
-            fromAsset,
-            toAsset,
-            decision.amountUsd || 1 // Sell $1 worth or buy $amountUsd
-          );
+
+          // For a full-exit SELL (amountUsd = 0) sell the position's entire current value.
+          let tradeUsd = decision.amountUsd || 1;
+          if (decision.action === 'SELL' && (!decision.amountUsd || decision.amountUsd <= 0)) {
+            const pos = positionInfos.find(p => p.symbol === decision.tokenSymbol.toUpperCase());
+            tradeUsd = pos && pos.currentUsd > 0 ? pos.currentUsd : 1;
+          }
+
+          const swapResult = await this.twakClient.executeSwap(fromAsset, toAsset, tradeUsd);
 
           if (swapResult.success) {
-            // Update trackers
-            this.riskManager.recordTradeExecution(decision.amountUsd);
+            // Update trackers (daily spend counts BUY volume; sells don't consume the buy budget)
+            this.riskManager.recordTradeExecution(decision.action === 'BUY' ? tradeUsd : 0);
             this.tradeEnforcer.recordTrade();
             
             const executionPrice = parseFloat(swapResult.amountOut) / parseFloat(swapResult.amountIn);
@@ -219,7 +233,7 @@ export class AgentOrchestrator {
             this.portfolioTracker.recordTrade(
               decision.action,
               decision.tokenSymbol,
-              decision.amountUsd,
+              tradeUsd,
               parseFloat(swapResult.amountOut),
               executionPrice || 1,
               swapResult.txHash,
@@ -232,7 +246,7 @@ export class AgentOrchestrator {
             this.ledger.record({
               action: decision.action,
               token: decision.tokenSymbol,
-              amountUsd: decision.amountUsd,
+              amountUsd: tradeUsd,
               reasoning: decision.reasoning,
               sentimentScore: sentiment.overallScore,
               regime: marketOverview.market_read?.regime,

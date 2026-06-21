@@ -30,10 +30,12 @@ export class PortfolioTracker {
   private trades: TradeRecord[] = [];
   private history: PortfolioSnapshot[] = [];
   private purchasePrices: Record<string, number> = {}; // Tracks average cost basis for open positions
-  
+  private costBasisUsd: Record<string, number> = {};   // USD spent to acquire each open position
+
   private tradesFilePath = path.join('logs', 'trades.json');
   private historyFilePath = path.join('logs', 'portfolio-history.json');
   private purchasePricesFilePath = path.join('logs', 'purchase-prices.json');
+  private costBasisFilePath = path.join('logs', 'cost-basis.json');
 
   constructor() {
     this.loadState();
@@ -53,6 +55,9 @@ export class PortfolioTracker {
       if (fs.existsSync(this.purchasePricesFilePath)) {
         this.purchasePrices = JSON.parse(fs.readFileSync(this.purchasePricesFilePath, 'utf8'));
       }
+      if (fs.existsSync(this.costBasisFilePath)) {
+        this.costBasisUsd = JSON.parse(fs.readFileSync(this.costBasisFilePath, 'utf8'));
+      }
       logger.info(`State loaded: ${this.trades.length} trades, ${this.history.length} snapshots.`);
     } catch (error: any) {
       logger.error(`Failed to load state: ${error.message}`);
@@ -67,6 +72,7 @@ export class PortfolioTracker {
       fs.writeFileSync(this.tradesFilePath, JSON.stringify(this.trades, null, 2));
       fs.writeFileSync(this.historyFilePath, JSON.stringify(this.history, null, 2));
       fs.writeFileSync(this.purchasePricesFilePath, JSON.stringify(this.purchasePrices, null, 2));
+      fs.writeFileSync(this.costBasisFilePath, JSON.stringify(this.costBasisUsd, null, 2));
     } catch (error: any) {
       logger.error(`Failed to save state: ${error.message}`);
     }
@@ -100,11 +106,12 @@ export class PortfolioTracker {
     const sym = symbol.toUpperCase();
     if (type === 'BUY') {
       // Update average entry price / cost basis
-      const currentCost = this.purchasePrices[sym] || 0;
       this.purchasePrices[sym] = price; // In this simple model we track latest entry price as stop loss basis
+      this.costBasisUsd[sym] = (this.costBasisUsd[sym] || 0) + amountUsd; // USD invested
     } else if (type === 'SELL') {
-      // Remove or reduce position from cost basis
+      // Full exit: clear the position's cost basis
       delete this.purchasePrices[sym];
+      delete this.costBasisUsd[sym];
     }
 
     this.saveState();
@@ -141,6 +148,11 @@ export class PortfolioTracker {
    */
   public getPurchasePrice(symbol: string): number | undefined {
     return this.purchasePrices[symbol.toUpperCase()];
+  }
+
+  /** USD cost basis (total invested) for an open position. */
+  public getCostBasis(symbol: string): number {
+    return this.costBasisUsd[symbol.toUpperCase()] || 0;
   }
 
   /**
