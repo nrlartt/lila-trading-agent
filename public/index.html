@@ -1004,7 +1004,9 @@
     // ---------- Connectivity ----------
     function connectWs() {
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const ws = new WebSocket(`${proto}//${location.hostname}:${location.port || 3000}`);
+      // Connect to the SAME origin (host[:port]) — behind a proxy/HTTPS (e.g. Railway,
+      // lilagent.xyz) the server is on 443, not 3000. location.host handles both.
+      const ws = new WebSocket(`${proto}//${location.host}`);
       ws.onopen = () => log('WebSocket connected.', 'info');
       ws.onmessage = (e) => {
         try {
