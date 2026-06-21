@@ -1,5 +1,6 @@
 import { logger } from './core/logger';
 import { config } from './core/config';
+import { materializeWalletFromEnv } from './core/wallet-bootstrap';
 import { AgentOrchestrator } from './core/agent-orchestrator';
 import { DashboardServer } from './dashboard/server';
 import { runRegistrationFlow } from './competition/register';
@@ -11,6 +12,10 @@ async function bootstrap() {
   logger.info('====================================================');
 
   try {
+    // 0. On cloud hosts, restore the registered wallet keystore from a secret (if provided)
+    //    so the agent trades from the real funded address instead of a fresh wallet.
+    materializeWalletFromEnv();
+
     // 1. Run Registration Flow (Wallet setup, competition, ERC-8004)
     logger.info('Running agent setup and registration check...');
     await runRegistrationFlow();
