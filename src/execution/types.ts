@@ -6,15 +6,15 @@ export interface WalletAddress {
 export interface TokenHolding {
   symbol: string;
   balance: string;
-  balanceRaw: string;
+  balanceRaw?: string;
   usdValue?: number;
-  decimals: number;
+  decimals?: number;
 }
 
 export interface WalletPortfolio {
   chain: string;
   nativeBalance: string;
-  nativeBalanceRaw: string;
+  nativeBalanceRaw?: string;
   nativeUsdValue?: number;
   tokens: TokenHolding[];
   totalUsdValue?: number;
