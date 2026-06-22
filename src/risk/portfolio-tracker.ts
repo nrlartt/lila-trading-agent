@@ -156,6 +156,20 @@ export class PortfolioTracker {
   }
 
   /**
+   * Seed a cost basis for a held position we have no record of (e.g. acquired before
+   * trade-recording was reliable). Uses current value as the baseline so take-profit /
+   * stop-loss can operate from now on. No-op if a basis already exists.
+   */
+  public seedCostBasisIfMissing(symbol: string, currentUsd: number): void {
+    const sym = symbol.toUpperCase();
+    if (!this.costBasisUsd[sym] && currentUsd > 0) {
+      this.costBasisUsd[sym] = currentUsd;
+      this.saveState();
+      logger.info(`Seeded cost basis for untracked holding ${sym}: $${currentUsd.toFixed(2)} (baseline).`);
+    }
+  }
+
+  /**
    * Calculate current metrics and statistics
    */
   public getStats(currentPortfolioValue: number) {

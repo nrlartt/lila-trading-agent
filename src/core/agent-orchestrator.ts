@@ -187,12 +187,16 @@ export class AgentOrchestrator {
       // Build position info (USD value + cost basis) for TP/SL and rotation
       const positionInfos = (portfolio.tokens || [])
         .filter(t => parseFloat(t.balance) > 0)
-        .map(t => ({
-          symbol: t.symbol.toUpperCase(),
-          amount: parseFloat(t.balance),
-          currentUsd: Number(t.usdValue) || 0,
-          costUsd: this.portfolioTracker.getCostBasis(t.symbol)
-        }));
+        .map(t => {
+          // Ensure even untracked holdings get a cost basis so TP/SL can manage them.
+          this.portfolioTracker.seedCostBasisIfMissing(t.symbol, Number(t.usdValue) || 0);
+          return {
+            symbol: t.symbol.toUpperCase(),
+            amount: parseFloat(t.balance),
+            currentUsd: Number(t.usdValue) || 0,
+            costUsd: this.portfolioTracker.getCostBasis(t.symbol)
+          };
+        });
       const availableBnbUsd = Number(portfolio.nativeUsdValue) || 0;
 
       let decisions = await this.strategyEngine.evaluate(context, openPositions, positionInfos, availableBnbUsd);

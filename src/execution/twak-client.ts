@@ -368,6 +368,29 @@ export class TwakClient {
    * on-chain, even if the CLI reported an error. BSC blocks are ~3s, so a short poll
    * window reliably catches a landed swap.
    */
+  /**
+   * Extract a swap result from raw CLI stdout that may contain human-readable lines
+   * before/around the JSON. Pulls the tx hash from the JSON object or, failing that,
+   * from the last 0x… hash in the text (the swap tx follows the approval tx).
+   */
+  private parseSwapOutput(raw: string, fromToken: string, toToken: string, amountUsd: number): SwapResult {
+    let txHash: string | undefined;
+    let amountOut = '0';
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const j = JSON.parse(jsonMatch[0]);
+        txHash = j.hash || j.txHash || j.transactionHash;
+        amountOut = j.amountOut || (j.output ? String(parseFloat(String(j.output))) : '0');
+      } catch { /* fall through to regex */ }
+    }
+    if (!txHash) {
+      const hashes = raw.match(/0x[a-fA-F0-9]{64}/g);
+      if (hashes && hashes.length) txHash = hashes[hashes.length - 1];
+    }
+    return { success: !!txHash, txHash, amountIn: amountUsd.toString(), amountOut, fromToken, toToken };
+  }
+
   private async verifySwapExecuted(toToken: string, beforeBal: number): Promise<{ executed: boolean; delta: number }> {
     if (beforeBal < 0) return { executed: false, delta: 0 };
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -422,17 +445,20 @@ export class TwakClient {
       // Tokens are resolved to BSC contract addresses (the router needs 0x..., not symbols).
       try {
         const result = await this.runCli(`swap ${this.resolveAsset(fromToken)} ${this.resolveAsset(toToken)}`, args);
-        const parsed = JSON.parse(result) as SwapResult;
-        const txHash = (parsed as any).txHash || (parsed as any).transactionHash || (parsed as any).hash;
-        logger.info(`Swap completed. Tx Hash: ${txHash}`);
-        return {
-          success: true,
-          txHash,
-          amountIn: (parsed as any).amountIn || amountUsd.toString(),
-          amountOut: (parsed as any).amountOut || (parsed as any).output || '0',
-          fromToken,
-          toToken
-        };
+        // The CLI may print human-readable lines before the JSON, so extract the JSON
+        // object / tx hash robustly instead of JSON.parse-ing the whole stdout.
+        const parsed = this.parseSwapOutput(result, fromToken, toToken, amountUsd);
+        if (parsed.success) {
+          logger.info(`Swap completed. Tx Hash: ${parsed.txHash}`);
+          return parsed;
+        }
+        // No hash parsed — confirm via on-chain balance delta before giving up.
+        const verifiedOk = await this.verifySwapExecuted(toToken, beforeBal);
+        if (verifiedOk.executed) {
+          logger.warn(`Swap output unparseable but balance increased (+${verifiedOk.delta}). Recording as success.`);
+          return { success: true, txHash: parsed.txHash || 'executed-unconfirmed', amountIn: amountUsd.toString(), amountOut: String(verifiedOk.delta || '0'), fromToken, toToken };
+        }
+        return { success: false, amountIn: amountUsd.toString(), amountOut: '0', fromToken, toToken, error: 'swap output unparseable and no balance change' };
       } catch (cliError: any) {
         // CLI errored — but did the swap actually land? Verify via balance delta.
         const txInMsg = (cliError.message || '').match(/0x[a-fA-F0-9]{64}/);
